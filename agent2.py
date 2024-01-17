@@ -42,7 +42,7 @@ class Agent():
     def __init__(self,path):
         self.dt = 0.02
         self.num_actions = 12
-        self.num_obs = 48 #44*5 #48
+        self.num_obs = 45 #44*5 #48
         self.unit_obs = 44
         self.num_privl_obs =  self.num_obs #421 # num_obs 
         self.device = 'cpu'
@@ -178,25 +178,24 @@ class Agent():
         self.pitch = torch.tensor([self.state.imu.rpy[1]],device=self.device,dtype=torch.float,requires_grad=False)
         self.roll = torch.tensor([self.state.imu.rpy[0]],device=self.device,dtype=torch.float,requires_grad=False)
        
-        self.dof_pos = torch.tensor([m - n for m,n in zip(self.q,self.default_angles)],device=self.device,dtype=torch.float,requires_grad=False)
         # print(vel[1])
-        if self.timestep > 1600:
-            self.base_ang_vel = torch.tensor([self.omegaBody],device=self.device,dtype=torch.float,requires_grad=False)
-            self.base_lin_vel = torch.tensor([self.lin_vel],device=self.device,dtype=torch.float,requires_grad=False)
-            self.projected_gravity = torch.tensor([self.gravity_vector],device=self.device,dtype=torch.float,requires_grad=False)
-            self.dof_vel = torch.tensor([self.dq],device=self.device,dtype=torch.float,requires_grad=False)
-        else:
-            self.base_ang_vel = 0*torch.tensor([self.omegaBody],device=self.device,dtype=torch.float,requires_grad=False)
-            self.base_lin_vel = 0*torch.tensor([self.lin_vel],device=self.device,dtype=torch.float,requires_grad=False)
-            self.projected_gravity = 0*torch.tensor([self.gravity_vector],device=self.device,dtype=torch.float,requires_grad=False)
-            self.dof_vel = 0*torch.tensor([self.dq],device=self.device,dtype=torch.float,requires_grad=False)
+        
+        # if self.timestep > 1600:
+        #     self.base_ang_vel = torch.tensor([self.omegaBody],device=self.device,dtype=torch.float,requires_grad=False)
+        #     self.base_lin_vel = torch.tensor([self.lin_vel],device=self.device,dtype=torch.float,requires_grad=False)
+        #     self.dof_vel = torch.tensor([self.dq],device=self.device,dtype=torch.float,requires_grad=False)
+        # else:
+        #     self.base_ang_vel = 0*torch.tensor([self.omegaBody],device=self.device,dtype=torch.float,requires_grad=False)
+        #     self.base_lin_vel = 0*torch.tensor([self.lin_vel],device=self.device,dtype=torch.float,requires_grad=False)
+        #     # self.projected_gravity = 0*torch.tensor([self.gravity_vector],device=self.device,dtype=torch.float,requires_grad=False)
+        #     self.dof_vel = 0*torch.tensor([self.dq],device=self.device,dtype=torch.float,requires_grad=False)
 
-        if self.timestep > 2000:
-            # self.commands = torch.tensor([0.5,0,0],device=self.device,dtype=torch.float,requires_grad=False)
-            self.commands = torch.tensor([forward,side,rotate],device=self.device,dtype=torch.float,requires_grad=False)
-        #     print(f"{vel[1]} | {self.base_ang_vel}")
-        else:
-            self.commands = torch.tensor([0,0,0],device=self.device,dtype=torch.float,requires_grad=False)
+        # if self.timestep > 2000:
+        #     # self.commands = torch.tensor([0.5,0,0],device=self.device,dtype=torch.float,requires_grad=False)
+        #     self.commands = torch.tensor([forward,side,rotate],device=self.device,dtype=torch.float,requires_grad=False)
+        # #     print(f"{vel[1]} | {self.base_ang_vel}")
+        # else:
+        #     self.commands = torch.tensor([0,0,0],device=self.device,dtype=torch.float,requires_grad=False)
 
         # print("Base ang vel :", self.base_ang_vel)
         # print("Lin vel tensor :", self.base_lin_vel)
@@ -216,8 +215,14 @@ class Agent():
         #     self.dof_vel.squeeze(),
         #     self.actions,
         #     ),dim=-1)
+        self.base_ang_vel = torch.tensor([self.omegaBody],device=self.device,dtype=torch.float,requires_grad=False)
+        self.dof_pos = torch.tensor([m - n for m,n in zip(self.q,self.default_angles)],device=self.device,dtype=torch.float,requires_grad=False)
+        self.projected_gravity = torch.tensor([self.gravity_vector],device=self.device,dtype=torch.float,requires_grad=False)
+        self.commands = torch.tensor([forward,side,rotate],device=self.device,dtype=torch.float,requires_grad=False)
+        self.dof_vel = 0*torch.tensor([self.dq],device=self.device,dtype=torch.float,requires_grad=False)
+
         self.obs = torch.cat((
-            self.base_lin_vel.squeeze(),
+            # self.base_lin_vel.squeeze(),
             self.base_ang_vel.squeeze(),
             self.projected_gravity.squeeze(),
             self.commands,
@@ -226,7 +231,9 @@ class Agent():
             self.actions,
             ),dim=-1)
         
-        current_obs = self.obs
+        # self.obs = torch.clip(self.obs, -100, 100)
+
+        # current_obs = self.obs
 
         #print("obs shape : ", (self.obs).shape)
         

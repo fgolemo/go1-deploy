@@ -42,9 +42,9 @@ class Agent():
     def __init__(self,path):
         self.dt = 0.02
         self.num_actions = 12
-        self.num_obs = 45 #44*5 #48
-        self.unit_obs = 44
-        self.num_privl_obs =  self.num_obs #421 # num_obs 
+        self.num_obs = 45*5 #44*5 #48
+        self.unit_obs = 45
+        self.num_privl_obs =  466 #self.num_obs #421 # num_obs 
         self.device = 'cpu'
         self.path = path#'bp4/model_1750.pt'
         self.d = {'FR_0':0, 'FR_1':1, 'FR_2':2,
@@ -60,6 +60,12 @@ class Agent():
         self.timestep = 0
         self.time = 0
         self.initialized = False
+
+        self.base_ang_vel_list = []
+        self.dof_pos_list = []
+        self.projected_gravity_list = []
+        self.dof_vel_list = []
+
 
 #####################################################################
         self.euler = np.zeros(3)
@@ -115,7 +121,8 @@ class Agent():
         
         self.actions = torch.zeros(self.num_actions,device=self.device,dtype=torch.float,requires_grad=False)
         self.obs = torch.zeros(self.num_obs,device=self.device,dtype=torch.float,requires_grad=False)
-        # self.obs_storage = torch.zeros(self.unit_obs*4,device=self.device,dtype=torch.float)
+        self.obs_storage = torch.zeros(self.unit_obs*4,device=self.device,dtype=torch.float)
+
 
         actor_critic = ActorCritic(num_actor_obs=self.num_obs,num_critic_obs=self.num_privl_obs,num_actions=12,actor_hidden_dims = [512, 256, 128],critic_hidden_dims = [512, 256, 128],activation = 'elu',init_noise_std = 1.0)
         loaded_dict = torch.load(self.path)
@@ -163,18 +170,9 @@ class Agent():
         self.aBody = self.getBodyAccel()
         #vel_estimator = FastLinearKFPositionVelocityEstimator(q, dq, p, v, quat, omegaBody, contact_estimate, body_accel)
         # self.base_lin_vel = self.runKF()
-        self.lin_vel = self.aBody*0.001
+        # self.lin_vel = self.aBody*0.001
         self.R = self.get_rotation_matrix_from_rpy(self.state.imu.rpy)
         self.gravity_vector = self.get_gravity_vector()
-
-        # print("gravity : ", self.gravity_vector)
-        # print("Foot positions : ", p)
-        # print("Foot velocities : ", v)
-        # print("Quaternion : ", quat)
-        # print("Body ang vel : ", omegaBody)
-        # print("Contact estimate : ", contact_estimate)
-        # print("Base lin vel : ", self.lin_vel)
-
         self.pitch = torch.tensor([self.state.imu.rpy[1]],device=self.device,dtype=torch.float,requires_grad=False)
         self.roll = torch.tensor([self.state.imu.rpy[0]],device=self.device,dtype=torch.float,requires_grad=False)
        
@@ -215,11 +213,27 @@ class Agent():
         #     self.dof_vel.squeeze(),
         #     self.actions,
         #     ),dim=-1)
-        self.base_ang_vel = torch.tensor([self.omegaBody],device=self.device,dtype=torch.float,requires_grad=False)
+        self.base_ang_vel = torch.tensor(self.omegaBody[np.newaxis, :],device=self.device,dtype=torch.float,requires_grad=False)
         self.dof_pos = torch.tensor([m - n for m,n in zip(self.q,self.default_angles)],device=self.device,dtype=torch.float,requires_grad=False)
-        self.projected_gravity = torch.tensor([self.gravity_vector],device=self.device,dtype=torch.float,requires_grad=False)
+        self.projected_gravity = torch.tensor(self.gravity_vector[np.newaxis, :],device=self.device,dtype=torch.float,requires_grad=False)
         self.commands = torch.tensor([forward,side,rotate],device=self.device,dtype=torch.float,requires_grad=False)
-        self.dof_vel = 0*torch.tensor([self.dq],device=self.device,dtype=torch.float,requires_grad=False)
+        self.dof_vel = 0.5*torch.tensor([self.dq],device=self.device,dtype=torch.float,requires_grad=False) # 0.5 scale maximum
+
+        # if self.motiontime > 1100 and self.motiontime < 1200:
+        #     print("Dof vel : ", self.dof_vel)
+        # print("Foot positions : ", p)
+        # print("Foot velocities : ", v)
+        # print("Quaternion : ", quat)
+        # print("Body ang vel : ", omegaBody)
+        # print("Contact estimate : ", contact_estimate)
+        # print("Base lin vel : ", self.lin_vel)
+
+        # if self.timestep < 200:
+        #     self.base_ang_vel_list.append(self.base_ang_vel.tolist())
+        #     self.dof_pos_list.append(self.dof_pos.tolist())
+        #     self.projected_gravity_list.append(self.projected_gravity.tolist())
+        #     self.dof_vel_list = []
+
 
         self.obs = torch.cat((
             # self.base_lin_vel.squeeze(),
@@ -231,16 +245,15 @@ class Agent():
             self.actions,
             ),dim=-1)
         
-        # self.obs = torch.clip(self.obs, -100, 100)
+        self.obs = torch.clip(self.obs, -100, 100)
 
-        # current_obs = self.obs
+        current_obs = self.obs
 
-        #print("obs shape : ", (self.obs).shape)
+        # print("obs shape : ", (self.obs).shape)
         
-        # self.obs = torch.cat((self.obs,self.obs_storage),dim=-1)
-
-        # self.obs_storage[:-self.unit_obs] = self.obs_storage[self.unit_obs:].clone()
-        # self.obs_storage[-self.unit_obs:] = current_obs
+        self.obs = torch.cat((self.obs,self.obs_storage),dim=-1)
+        self.obs_storage[:-self.unit_obs] = self.obs_storage[self.unit_obs:].clone()
+        self.obs_storage[-self.unit_obs:] = current_obs
 
     def init_pose(self):
         while self.init:
@@ -251,7 +264,6 @@ class Agent():
                 self.setJointValues(self.default_angles,kp=5,kd=1)
             else:
                 self.setJointValues(self.default_angles,kp=50,kd=5)
-                # self.setJointValues(self.default_angles,kp=20,kd=0.5)
             if self.motiontime > 1100:
                 self.init = False
             self.post_step()
@@ -282,6 +294,7 @@ class Agent():
         # print("observations:" + str(time.process_time()) + ",".join(map(str, self.obs.detach().numpy().tolist())))
 
         self.setJointValues(angles=final_angles,kp=20,kd=0.5)
+        # self.setJointValues(self.default_angles,kp=50,kd=5)
         self.post_step()
 
     def post_step(self):

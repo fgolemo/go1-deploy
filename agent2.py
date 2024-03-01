@@ -125,7 +125,7 @@ class Agent():
 
 
         actor_critic = ActorCritic(num_actor_obs=self.num_obs,num_critic_obs=self.num_privl_obs,num_actions=12,actor_hidden_dims = [512, 256, 128],critic_hidden_dims = [512, 256, 128],activation = 'elu',init_noise_std = 1.0)
-        loaded_dict = torch.load(self.path)
+        loaded_dict = torch.load(self.path, map_location=torch.device("cpu"))
         actor_critic.load_state_dict(loaded_dict['model_state_dict'])
         actor_critic.eval()
         self.policy = actor_critic.act_inference

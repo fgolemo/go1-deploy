@@ -1,4 +1,4 @@
-# go1-rl-kit
+# go1-deploy
 Deployment kit for Unitree Go1 Edu 
 
 This repo can be deployed in the following configurations:
@@ -16,19 +16,24 @@ This repo can be deployed in the following configurations:
 
 # Installation 
 On the target machine run the following commands
-1. `git clone https://github.com/TextZip/go1-rl-kit`  
-2. `cd go1-rl-kit`
-3. Build the unitree_legged_sdk using instructions from https://github.com/unitreerobotics/unitree_legged_sdk/tree/v3.8.0
-4. Make sure to run one of the python examples from the `unitree_legged_sdk/example_py/` to make sure the build is working. 
-5. Manually assign the following network config
+1. `git clone https://github.com/fgolemo/go1-deploy`  
+2. `cd go1-deploy`
+3. Build the unitree_legged_sdk
+    - `cd unitree_legged_sdk`
+    - `mkdir build`
+    - `cd build`
+    - `cmake ../`
+    - `make` 
+5. Make sure to run one of the python examples from the `unitree_legged_sdk/example_py/` to make sure the build is working. 
+6. Manually assign the following network config
     - IP Address: 192.168.123.162
     - Subnet Mask: 255.255.255.0
     - Default Gateway: 192.168.123.1
-6. `ping 192.168.123.10` to make sure you are able to reach the motor controller
+7. `ping 192.168.123.10` to make sure you are able to reach the motor controller
 
 # Deployment
 1. Turn on the robot and the unitree joystick and wait for it to automatically stand up.
-2. Enter low level mode using the following commands:
+2. Enter low level mode using the following commands (or use the script `unitree_legged_sdk/kill-sport-mode.sh`, password `123`):
     - L2 + A
     - L2 + A
     - L2 + B
